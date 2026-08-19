@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { background: #FAF6F0; color: #2A201C; }
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors whitespace-nowrap; }
+  .btn-primary { @apply bg-wine text-white hover:bg-wine-deep; }
+  .btn-ghost { @apply bg-transparent text-ink2 border border-line2 hover:bg-blush hover:border-wine hover:text-wine; }
+  .btn-danger { @apply bg-transparent text-bad border border-bad/30 hover:bg-bad-bg; }
+  .btn-sm { @apply px-2.5 py-1.5 text-xs; }
+
+  .card { @apply bg-card border border-line rounded-2xl shadow-sm; }
+  .input { @apply w-full bg-white border border-line2 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blush focus:border-wine; }
+  .label { @apply block text-xs font-semibold text-ink2 mb-1.5; }
+
+  .badge { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold; }
+  .badge::before { content: ''; @apply w-1.5 h-1.5 rounded-full bg-current; }
+  .badge-ok { @apply text-ok bg-ok-bg; }
+  .badge-warn { @apply text-warn bg-warn-bg; }
+  .badge-bad { @apply text-white bg-bad; }
+  .badge-bad::before { @apply bg-white; }
+  .badge-off { @apply text-off bg-off-bg; }
+
+  .nav-item { @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-ink2 hover:bg-[#F3EFEB]; }
+  .nav-item.active { @apply bg-blush text-wine font-semibold; }
+}
