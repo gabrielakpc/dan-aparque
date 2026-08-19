@@ -18,8 +18,7 @@ export default async function HojePage() {
     .in("situacao", ["atrasada", "hoje", "breve"])
     .order("vencimento", { ascending: true });
 
-  const { data: ativosCount } = await supabase.from("alunos").select("id", { count: "exact", head: true }).eq("status", "ativo");
-  const { count: totalAtivos } = ativosCount as any as { count: number };
+  const { count: totalAtivos } = await supabase.from("alunos").select("id", { count: "exact", head: true }).eq("status", "ativo");
 
   const { data: pagamentosMes } = await supabase
     .from("pagamentos")
