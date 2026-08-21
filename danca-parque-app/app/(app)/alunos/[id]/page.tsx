@@ -7,7 +7,7 @@ import { RegistrarPagamento } from "@/components/RegistrarPagamento";
 import { AcoesCobrancaWhatsApp } from "@/components/AcoesCobrancaWhatsApp";
 import { InativarBotao } from "./InativarBotao";
 import { ExcluirAlunoBotao } from "./ExcluirAlunoBotao";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +76,7 @@ export default async function AlunoPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href={`/alunos/${aluno.id}/editar`} className="btn btn-ghost"><Pencil size={15} /> Editar</Link>
           {proxima ? (
             <AcoesCobrancaWhatsApp
               alunoId={aluno.id}
