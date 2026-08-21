@@ -6,6 +6,7 @@ import { Avatar, Badge, StatCard, EmptyState } from "@/components/ui";
 import { RegistrarPagamento } from "@/components/RegistrarPagamento";
 import { AcoesCobrancaWhatsApp } from "@/components/AcoesCobrancaWhatsApp";
 import { InativarBotao } from "./InativarBotao";
+import { ExcluirAlunoBotao } from "./ExcluirAlunoBotao";
 import { ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,12 @@ export const dynamic = "force-dynamic";
 export default async function AlunoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
+
+  const { data: auth } = await supabase.auth.getUser();
+  const { data: usuarioAtual } = auth.user
+    ? await supabase.from("usuarios").select("papel").eq("id", auth.user.id).single()
+    : { data: null };
+  const isAdmin = usuarioAtual?.papel === "administrador";
 
   const { data: aluno } = await supabase.from("alunos").select("*").eq("id", id).single();
   if (!aluno) notFound();
@@ -143,7 +150,10 @@ export default async function AlunoPage({ params }: { params: Promise<{ id: stri
 
       <div className="card p-5">
         <p className="text-[11px] tracking-[0.14em] uppercase text-muted font-semibold mb-3">Matrícula</p>
-        <InativarBotao alunoId={aluno.id} status={aluno.status} />
+        <div className="flex flex-wrap gap-2">
+          <InativarBotao alunoId={aluno.id} status={aluno.status} />
+          {isAdmin ? <ExcluirAlunoBotao alunoId={aluno.id} nome={aluno.nome} /> : null}
+        </div>
       </div>
     </div>
   );
