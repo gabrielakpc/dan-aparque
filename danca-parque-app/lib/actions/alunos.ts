@@ -96,10 +96,20 @@ export async function editarAluno(alunoId: string, _prev: EstadoAcao, formData: 
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { ok: false, erro: "Sessão expirada." };
 
+  const nome = String(formData.get("nome") || "").trim();
+  const telefone = onlyDigits(String(formData.get("telefone") || ""));
+  if (nome.length < 3) return { ok: false, erro: "Informe o nome completo." };
+  if (telefone.length < 10) return { ok: false, erro: "WhatsApp inválido — informe com DDD." };
+
+  const existente = await supabase
+    .from("alunos").select("id, nome").eq("telefone", telefone).neq("id", alunoId).maybeSingle();
+  if (existente.data) return { ok: false, erro: `Já existe outro aluno com este WhatsApp: ${existente.data.nome}.` };
+
   const patch: Record<string, unknown> = {
-    nome: String(formData.get("nome") || "").trim(),
-    telefone: onlyDigits(String(formData.get("telefone") || "")),
+    nome,
+    telefone,
     email: String(formData.get("email") || "") || null,
+    nascimento: String(formData.get("nascimento") || "") || null,
     origem: String(formData.get("origem") || "") || null,
     obs: String(formData.get("obs") || "") || null,
     obs_interna: String(formData.get("obs_interna") || "") || null,
@@ -111,17 +121,33 @@ export async function editarAluno(alunoId: string, _prev: EstadoAcao, formData: 
   const valor = Number(formData.get("valor") || 0);
   const dueDay = Number(formData.get("dia_vencimento") || 0);
   const cycleStart = String(formData.get("inicio_ciclo") || "");
+  const planoId = String(formData.get("plano_id") || "") || null;
   if (matriculaId && valor >= 0 && dueDay >= 1 && dueDay <= 31 && cycleStart) {
     // os gatilhos do banco cuidam de propagar só para mensalidades futuras em aberto
     await supabase
       .from("matriculas")
-      .update({ valor, dia_vencimento: dueDay, inicio_ciclo: cycleStart })
+      .update({ valor, dia_vencimento: dueDay, inicio_ciclo: cycleStart, plano_id: planoId })
       .eq("id", matriculaId);
+  }
+
+  // turmas: substitui os vínculos pelos que vieram marcados no formulário
+  const turmaIds = formData.getAll("turmas").map(String).filter(Boolean);
+  await supabase.from("aluno_turmas").delete().eq("aluno_id", alunoId);
+  if (turmaIds.length) {
+    await supabase.from("aluno_turmas").insert(turmaIds.map((turma_id) => ({ aluno_id: alunoId, turma_id })));
+  }
+
+  const { data: usuario } = await supabase.from("usuarios").select("escola_id").eq("id", auth.user.id).single();
+  if (usuario) {
+    await supabase.from("auditoria").insert({
+      escola_id: usuario.escola_id, usuario_id: auth.user.id,
+      acao: "Aluno editado", entidade: "aluno", entidade_id: alunoId, detalhe: nome,
+    });
   }
 
   revalidatePath(`/alunos/${alunoId}`);
   revalidatePath("/alunos");
-  return { ok: true };
+  redirect(`/alunos/${alunoId}`);
 }
 
 export async function inativarAluno(alunoId: string) {
