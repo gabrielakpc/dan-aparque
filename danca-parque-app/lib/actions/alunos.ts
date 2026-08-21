@@ -207,3 +207,56 @@ export async function estornarPagamento(pagamentoId: string, alunoId: string) {
   revalidatePath("/mensalidades");
   revalidatePath("/hoje");
 }
+
+export type EstadoExclusao = { ok: boolean; erro?: string };
+
+/**
+ * Exclusão PERMANENTE de um aluno e de tudo que depende dele
+ * (matrículas, mensalidades, pagamentos, cobranças, mensagens, presenças).
+ * Só o administrador pode. Não existe desfazer — é para dados de teste ou
+ * cadastros feitos por engano, nunca para um aluno que já teve movimento
+ * financeiro real. Para alunos que saíram da escola de verdade, o caminho
+ * é inativar, não excluir: o histórico financeiro precisa ficar preservado.
+ */
+export async function excluirAluno(_prev: EstadoExclusao, formData: FormData): Promise<EstadoExclusao> {
+  const alunoId = String(formData.get("aluno_id") || "");
+  const confirmacao = String(formData.get("confirmacao") || "").trim();
+
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { ok: false, erro: "Sessão expirada." };
+
+  const { data: usuario } = await supabase.from("usuarios").select("escola_id, papel").eq("id", auth.user.id).single();
+  if (!usuario || usuario.papel !== "administrador") return { ok: false, erro: "Apenas o administrador pode excluir um aluno." };
+
+  const { data: aluno } = await supabase.from("alunos").select("nome").eq("id", alunoId).single();
+  if (!aluno) return { ok: false, erro: "Aluno não encontrado." };
+  if (confirmacao !== aluno.nome) return { ok: false, erro: `Digite exatamente "${aluno.nome}" para confirmar.` };
+
+  const { data: pagos } = await supabase.from("pagamentos").select("id").eq("aluno_id", alunoId).eq("status", "confirmado").limit(1);
+  if (pagos && pagos.length > 0) {
+    return { ok: false, erro: "Este aluno já tem pagamentos confirmados — não pode ser excluído, apenas inativado. O histórico financeiro precisa ficar preservado." };
+  }
+
+  // ordem importa: cada tabela abaixo referencia a anterior e bloqueia
+  // exclusão em cascata de propósito (proteção do histórico financeiro)
+  await supabase.from("mensagens").delete().eq("aluno_id", alunoId);
+  await supabase.from("cobrancas").delete().eq("aluno_id", alunoId);
+  await supabase.from("presencas").delete().eq("aluno_id", alunoId);
+  await supabase.from("aluno_turmas").delete().eq("aluno_id", alunoId);
+  await supabase.from("pagamentos").delete().eq("aluno_id", alunoId);
+  await supabase.from("mensalidades").delete().eq("aluno_id", alunoId);
+  await supabase.from("matriculas").delete().eq("aluno_id", alunoId);
+  const { error } = await supabase.from("alunos").delete().eq("id", alunoId);
+  if (error) return { ok: false, erro: "Não foi possível excluir. Tente novamente." };
+
+  await supabase.from("auditoria").insert({
+    escola_id: usuario.escola_id, usuario_id: auth.user.id,
+    acao: "Aluno excluído permanentemente", entidade: "aluno", entidade_id: null,
+    detalhe: aluno.nome,
+  });
+
+  revalidatePath("/alunos");
+  revalidatePath("/hoje");
+  redirect("/alunos");
+}
